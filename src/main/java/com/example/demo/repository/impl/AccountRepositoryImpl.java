@@ -1,6 +1,7 @@
 
 package com.example.demo.repository.impl;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,11 +11,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.demo.model.Account;
 import com.example.demo.model.QAccount;
+import com.example.demo.model.QStaticData;
 import com.example.demo.model.enums.AccountRole;
 import com.example.demo.model.enums.Gender;
 import com.example.demo.repository.AccountRepository;
+import com.example.demo.response.AccountResponse;
 import com.querydsl.core.BooleanBuilder;
-import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.QBean;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 public class AccountRepositoryImpl implements AccountRepositoryExtend {
@@ -48,12 +53,33 @@ public class AccountRepositoryImpl implements AccountRepositoryExtend {
     @Override
     public List<Account> searchCustom() {
         QAccount account = QAccount.account;
-//        JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
-//        return queryFactory.selectFrom(account).where(account.email.eq("test_user_1@domain.com")).fetch();
-        JPAQuery<Account> query = new JPAQuery<Account>(entityManager);
-//        return query.from(account).orderBy(account.timeToHome.desc()).limit(1).fetch();
-//        queryFactory.from(account).innerJoin(account).on(account.id.eq(account.id)).where(account.role.eq(AccountRole.STAFF)).fetch();
-        return null;
+        JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
+        return queryFactory.selectFrom(account)
+                .where(account.email.endsWith("domain.com")
+                       .and(account.phoneNumber.contains("1111")))
+                .fetch();
+////        queryFactory.from(account).innerJoin(account).on(account.id.eq(account.id)).where(account.role.eq(AccountRole.STAFF)).fetch();
+    }
+
+    @Override
+    public List<AccountResponse> searchCustomResponse() {
+        // custom response
+        QAccount account = QAccount.account;
+        QStaticData staticData = QStaticData.staticData;
+        
+
+        QBean<AccountResponse> bean = Projections.bean(AccountResponse.class,
+                                                       account.email.as("email"),
+                                                       account.phoneNumber.as("phoneNumber"));
+
+        JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
+        return queryFactory.select(bean)
+                           .from(account)
+                           .where(account.dob.after(LocalDate.of(1980, 10, 10))
+                                  .and(account.district.in(JPAExpressions.selectFrom(staticData)
+                                       .where(staticData.id.between(13, 16))))
+                                  .and(JPAExpressions.selectFrom(staticData).where(staticData.id.eq(14L)).exists()))
+                           .fetch();
     }
 
 }
